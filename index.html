@@ -1,33 +1,45 @@
+
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>Hyper Web Search</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <!-- Tailwind (CDN) -->
-  <script src="https://cdn.tailwindcss.com"></script>
+<meta charset="UTF-8">
+<title>Hyper Web Search</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root{--blue:#2166ff;--gray:#f2f3f5;}
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;margin:20px;max-width:480px}
+  h1{font-size:1.6rem;margin-bottom:1rem}
+  .row{display:flex;gap:.5rem;margin-bottom:1rem}
+  input[type="text"]{flex:1;padding:.6rem;border:1px solid #ccc;border-radius:.3rem;font-size:1rem}
+  button.search{padding:.6rem 1.2rem;font-size:1rem;color:#fff;background:var(--blue);border:none;border-radius:.3rem;cursor:pointer}
+  .sites{display:flex;flex-direction:column;gap:.25rem;margin-bottom:1.5rem}
+  .sites label{display:flex;align-items:center;gap:.4rem;font-size:.94rem}
+  .sites input{accent-color:var(--blue)}
+  .hist{margin-top:1.5rem}
+  .hist h2{font-size:.95rem;margin-bottom:.4rem}
+  .hist ul{list-style:disc;margin:0;padding-left:1.2rem}
+  .hist li{cursor:pointer;color:#0366d6}
+</style>
 </head>
-<body class="p-6 max-w-xl mx-auto">
+<body>
 
-  <h1 class="text-2xl font-bold mb-4">Hyper Web Search</h1>
+<h1>Hyper Web Search</h1>
 
-  <!-- キーワード入力 -->
-  <input id="kw" type="text"
-         placeholder="商品名 / JAN / 型番"
-         class="w-full border rounded p-3 mb-4">
+<!-- 1 行で検索ボックス＋ボタン -->
+<div class="row">
+  <input id="kw" type="text" placeholder="商品名 / JAN / 型番">
+  <button class="search" onclick="handleSearch()">検索</button>
+</div>
 
-  <!-- サイト選択 -->
-  <fieldset id="siteBox" class="flex flex-wrap gap-3 mb-6"></fieldset>
+<!-- サイトチェックボックス -->
+<div id="sitesBox" class="sites"></div>
 
-  <!-- 検索ボタン -->
-  <button id="btnSearch"
-          class="w-full bg-blue-600 text-white py-3 rounded hover:bg-blue-700">
-    検索
-  </button>
-
-  <!-- 履歴 -->
-  <h2 class="text-lg font-semibold mt-8 mb-2">履歴</h2>
-  <div id="histBox" class="flex flex-wrap gap-3"></div>
+<!-- 履歴 -->
+<div class="hist">
+  <h2>履歴の一覧：</h2>
+  <ul id="histList"></ul>
+</div>
 
   <script>
 /* ---- 以前の Service Worker を完全解除 ---- */
@@ -36,6 +48,68 @@ if ('serviceWorker' in navigator) {
     .then(regs => regs.forEach(reg => reg.unregister()));
 }
 </script>
+
+<script>
+// ------------------- 設定 -------------------
+const SITES = [
+  { id:'rakuten', label:'楽天',   url:q=>`https://search.rakuten.co.jp/search/mall/${q}/` },
+  { id:'yahoo',   label:'Yahoo',  url:q=>`https://shopping.yahoo.co.jp/search?p=${q}` },
+  { id:'amazon',  label:'Amazon', url:q=>`https://www.amazon.co.jp/s?k=${q}` },
+  { id:'mercari', label:'メルカリ',url:q=>`https://jp.mercari.com/search?keyword=${q}` },
+  { id:'yafuoku', label:'ヤフフリ',url:q=>`https://auctions.yahoo.co.jp/search/search?p=${q}` },
+  { id:'rakuma',  label:'ラクマ', url:q=>`https://fril.jp/s?query=${q}` }
+];
+const MAX_HIST = 10;
+
+// ------------------- UI 初期化 -------------------
+const sitesBox  = document.getElementById('sitesBox');
+const histList  = document.getElementById('histList');
+const kwInput   = document.getElementById('kw');
+
+SITES.forEach(s=>{
+  sitesBox.insertAdjacentHTML('beforeend',`
+    <label><input type="checkbox" id="${s.id}" checked> ${s.label}</label>
+  `);
+});
+renderHist();
+
+// ------------------- 検索 -------------------
+function handleSearch(){
+  const kw = kwInput.value.trim();
+  if(!kw){ kwInput.focus(); return; }
+  const q = encodeURIComponent(kw);
+
+  SITES.forEach(s=>{
+    if(document.getElementById(s.id).checked){
+      window.open(s.url(q),'_blank');
+    }
+  });
+  storeHist(kw);
+}
+
+// ------------------- 履歴 -------------------
+function storeHist(kw){
+  let h = JSON.parse(localStorage.getItem('hist')||'[]');
+  h = h.filter(x=>x!==kw);      // 重複削除
+  h.unshift(kw);                // 先頭挿入
+  h = h.slice(0,MAX_HIST);      // 上限
+  localStorage.setItem('hist',JSON.stringify(h));
+  renderHist();
+}
+
+function renderHist(){
+  histList.innerHTML='';
+  const h = JSON.parse(localStorage.getItem('hist')||'[]');
+  h.forEach(w=>{
+    const li=document.createElement('li');
+    li.textContent=w;
+    li.onclick=()=>{ kwInput.value=w; };
+    histList.appendChild(li);
+  });
+}
+</script>
+</body>
+</html>
 
 <script>
   
