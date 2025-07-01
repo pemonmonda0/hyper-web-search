@@ -10,12 +10,12 @@
       /* ── 行そのものを 4 列グリッドにする ────────────────── */
       .siteRow {
         display: grid;
-        grid-template-columns: 120px 140px 80px 80px; /* label / sort / min / max */
+        grid-template-columns: 120px 160px 160px; /* label / sort / xxx */
         gap: 0.5rem;
         align-items: center;
-        border: 1px solid #ddd;
+        border: 0px solid #ddd;
         border-radius: 0.5rem;
-        padding: 0.4rem;
+        padding: 0.1rem; /* 間隔 */
         transition: 0.15s;
       }
       .siteRow:hover {
@@ -32,7 +32,8 @@
   </head>
 
   <!-- *** BODY *** -->
-  <body class="max-w-lg mx-auto p-4 space-y-4">
+  <body class="max-w-lg mx-auto p-4 space-y-2">
+    <h1 class="text-2xl font-bold">値段リサーチくん。素早く値段を調べます。</h1>
     <!-- ───────── 検索バー ───────── -->
     <div class="flex gap-2">
       <input
@@ -45,8 +46,34 @@
       </button>
     </div>
 
+    <!-- 全ECの使用有無を設定するチェックボックス-->
+    <div class="siteRow" id="commonRow">
+      <div class="flex items-center gap-5">
+        <input type="checkbox" id="chk_all" class="h-5 w-5" />
+        <label for="chk_all" class="select-none">全サイト</label>
+      </div>
+    </div>
+
     <!-- ───────── サイト入力行（動的生成） ───────── -->
     <div id="siteBox" class="space-y-2"></div>
+
+    <!-- 値段の上限、下限のBOX -->
+    <div class="siteRow" id="priceRow">
+      <!-- ラベルと入力欄を2〜4列目に -->
+        <div class="whitespace-nowrap">値段：</div>
+        <input
+          id="min_common"
+          type="number"
+          placeholder="下限"
+          class="border rounded px-2 py-1 text-right text-sm w-full"
+        />
+        <input
+          id="max_common"
+          type="number"
+          placeholder="上限"
+          class="border rounded px-2 py-1 text-right text-sm w-full"
+        />
+    </div>
 
     <!-- ───────── 履歴 ───────── -->
     <h2 class="font-bold mt-6">履歴</h2>
@@ -55,6 +82,7 @@
       class="list-disc pl-6 space-y-1 text-blue-600 cursor-pointer"
     ></ul>
 
+    <!-- ------------------------------------ script ---------------------------------- -->
     <script>
       /* ===== 1. サイト定義 ===== */
       const SITES = [
@@ -67,6 +95,9 @@
             { v: "13", t: "高い順 (価格+送料)" },
             { v: "2", t: "安い順" },
             { v: "3", t: "高い順" },
+            { v: "4", t: "新着順" },
+            { v: "5", t: "レビュー件数順" },
+            { v: "6", t: "レビュー評価順" },
           ],
           url: (q, o) =>
             `https://search.rakuten.co.jp/search/mall/${q}/?s=${o.sort}` +
@@ -97,7 +128,7 @@
           id: "amazon",
           label: "Amazon",
           sort: [
-            { v: "relevanceblender", t: "おすすめ" },
+            { v: "relevanceblender", t: "おすすめ順" },
             { v: "price-asc-rank", t: "安い順" },
             { v: "price-desc-rank", t: "高い順" },
             { v: "review-rank", t: "標準的なカスタマーレビュー" },
@@ -163,17 +194,15 @@
             "beforeend",
             `
             <div class="siteRow" id="row_${s.id}">
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-5">
                 <input type="checkbox" id="chk_${s.id}" class="h-5 w-5" >
                 <label for="chk_${s.id}" class="select-none">${s.label}</label>
               </div>
               <select id="sort_${s.id}" class="border rounded px-1 py-0.5 text-sm w-full">
                 ${sortOpts}
               </select>
-              <input id="min_${s.id}" type="number" placeholder="下限"
-                    class="border rounded px-1 py-0.5 text-right text-sm w-num">
-              <input id="max_${s.id}" type="number" placeholder="上限"
-                    class="border rounded px-1 py-0.5 text-right text-sm w-num">
+              <div></div>
+              <div></div>
             </div>`
           );
         });
@@ -193,8 +222,8 @@
           if (document.getElementById(`chk_${s.id}`).checked) {
             const opt = {
               sort: document.getElementById(`sort_${s.id}`).value,
-              min: document.getElementById(`min_${s.id}`).value,
-              max: document.getElementById(`max_${s.id}`).value,
+              min: document.getElementById(`min_common`).value,
+              max: document.getElementById(`max_common`).value,
             };
             window.open(s.url(q, opt), "_blank" + Math.random(), "noopener");
           }
@@ -222,6 +251,14 @@
         });
       }
       drawHist();
+
+      // 全ECサイトを操作するチェックボックスに変化があった場合のイベント
+      document.getElementById("chk_all").addEventListener("change", (e) => {
+        const checked = e.target.checked;
+        SITES.forEach((s) => {
+          document.getElementById(`chk_${s.id}`).checked = checked;
+        });
+      });
     </script>
   </body>
 </html>
