@@ -33,7 +33,7 @@
 
   <!-- *** BODY *** -->
   <body class="max-w-lg mx-auto p-4 space-y-2">
-    <h1 class="text-2xl font-bold">値段リサーチくん。素早く値段を調べます。</h1>
+    <h1 class="text-2xl font-bold">最安を、一撃サーチ。</h1>
     <!-- ───────── 検索バー ───────── -->
     <div class="flex gap-2">
       <input
@@ -60,27 +60,29 @@
     <!-- 値段の上限、下限のBOX -->
     <div class="siteRow" id="priceRow">
       <!-- ラベルと入力欄を2〜4列目に -->
-        <div class="whitespace-nowrap">値段：</div>
-        <input
-          id="min_common"
-          type="number"
-          placeholder="下限"
-          class="border rounded px-2 py-1 text-right text-sm w-full"
-        />
-        <input
-          id="max_common"
-          type="number"
-          placeholder="上限"
-          class="border rounded px-2 py-1 text-right text-sm w-full"
-        />
+      <label for="chk_${s.id}" class="select-none">値段の上・下限</label>
+      <input
+        id="min_common"
+        type="number"
+        placeholder="下限"
+        class="border rounded px-2 py-1 text-right text-sm w-full"
+      />
+      <input
+        id="max_common"
+        type="number"
+        placeholder="上限"
+        class="border rounded px-2 py-1 text-right text-sm w-full"
+      />
     </div>
 
     <!-- ───────── 履歴 ───────── -->
-    <h2 class="font-bold mt-6">履歴</h2>
-    <ul
-      id="hist"
-      class="list-disc pl-6 space-y-1 text-blue-600 cursor-pointer"
-    ></ul>
+    <div class="mt-6">
+      <p class="select-none">検索履歴を商品名に設定します。</p>
+      <ul
+        id="hist"
+        class="list-disc pl-6 space-y-1 text-blue-600 cursor-pointer"
+      ></ul>
+    </div>
 
     <!-- ------------------------------------ script ---------------------------------- -->
     <script>
