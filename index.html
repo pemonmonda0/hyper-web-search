@@ -4,10 +4,11 @@
   <meta charset="UTF-8">
   <title>Hyper Web Search</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <!-- Tailwind CDN -->
+
+  <!-- Tailwind CDN（開発版で十分） -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- PWA ひも付け -->
+  <!-- PWA -->
   <link rel="manifest" href="manifest.json">
   <script>
     if ('serviceWorker' in navigator) {
@@ -15,83 +16,101 @@
     }
   </script>
 </head>
-<body class="p-4 max-w-md mx-auto">
+<body class="p-4 max-w-md mx-auto text-sm leading-relaxed">
 
   <h1 class="text-xl font-bold mb-4">Hyper Web Search</h1>
 
-  <!-- キーワード入力 -->
-  <input id="keyword" class="w-full border p-2 mb-3 rounded"
+  <!-- 🔍 キーワード入力 -->
+  <input id="keyword" class="w-full border p-2 rounded mb-3"
          placeholder="商品名 / JAN / 型番">
 
-  <!-- サイトトグル自動生成 -->
+  <!-- ✅ サイトトグル（JS で自動生成） -->
   <div id="toggles" class="flex flex-wrap gap-2 mb-4"></div>
 
-  <!-- 検索ボタン -->
+  <!-- 🚀 検索ボタン -->
   <button onclick="openTabs()"
           class="w-full bg-blue-600 text-white py-2 rounded mb-4">検索</button>
 
-  <!-- フッター広告（AdSense 承認後に表示されます） -->
+  <!-- 🕘 履歴バッジ -->
+  <div id="history" class="flex flex-wrap gap-2 mb-6"></div>
+
+  <!-- 📢 広告（AdSense 承認済みなら自動表示） -->
   <ins class="adsbygoogle block text-center"
-       style="display:block"
-       data-ad-format="auto"
-       data-full-width-responsive="true"></ins>
+       data-ad-format="auto" data-full-width-responsive="true"></ins>
   <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
 
 <script>
-/* ---------- 1. 検索するサイト一覧 ---------- */
+/* ---------- 1. 検索対象サイト定義 ---------- */
 const SITES = [
-  {id:'rakuten', label:'楽天',   color:'red-500',
-    url:q=>`https://search.rakuten.co.jp/search/mall/${q}/?s=2`},
-  {id:'yahoo',   label:'Yahoo',  color:'yellow-500',
-    url:q=>`https://shopping.yahoo.co.jp/search?p=${q}&ss_sort=%2Bprice`},
-  {id:'amazon',  label:'Amazon', color:'neutral-800',
-    url:q=>`https://www.amazon.co.jp/s?k=${q}&s=price-asc-rank`},
-  {id:'mercari', label:'メルカリ',color:'orange-500',
-    url:q=>`https://jp.mercari.com/search?keyword=${q}&sort=price_asc`},
-  {id:'yafuri',  label:'ﾔﾌﾌﾘ',  color:'yellow-600',
-    url:q=>`https://auctions.yahoo.co.jp/search/search?p=${q}&slider=price`},
-  {id:'rakuma',  label:'ラクマ', color:'pink-600',
-    url:q=>`https://fril.jp/s?query=${q}&order=price_asc`}
+  { id:'rakuten', label:'楽天',   color:'red-500',
+    url:q=>`https://search.rakuten.co.jp/search/mall/${q}/?s=2` },
+  { id:'yahoo',   label:'Yahoo',  color:'yellow-500',
+    url:q=>`https://shopping.yahoo.co.jp/search?p=${q}&ss_sort=%2Bprice` },
+  { id:'amazon',  label:'Amazon', color:'neutral-800',
+    url:q=>`https://www.amazon.co.jp/s?k=${q}&s=price-asc-rank` },
+  { id:'mercari', label:'メルカリ', color:'orange-500',
+    url:q=>`https://jp.mercari.com/search?keyword=${q}&sort=price_asc` },
+  { id:'yafuri',  label:'ﾔﾌﾌﾘ',  color:'yellow-600',
+    url:q=>`https://auctions.yahoo.co.jp/search/search?p=${q}&slider=price` },
+  { id:'rakuma',  label:'ラクマ', color:'pink-600',
+    url:q=>`https://fril.jp/s?query=${q}&order=price_asc` }
 ];
 
-/* ---------- 2. トグルボタンを描画 ---------- */
+/* ---------- 2. トグルボタン描画 ---------- */
 function buildToggles(){
-  const box=document.getElementById('toggles');
-  SITES.forEach(s=>{
-    box.insertAdjacentHTML('beforeend',`
-  <input type="checkbox" id="chk_${s.id}" class="peer hidden" checked>
-  <label for="chk_${s.id}"
-         class="px-3 py-1 rounded text-white bg-${s.color}
-                peer-checked:opacity-100 opacity-40 select-none">
-    ${s.label}
-  </label>`);
+  const box = document.getElementById('toggles');
+  SITES.forEach(s => {
+    box.insertAdjacentHTML('beforeend', `
+      <input type="checkbox" id="chk_${s.id}" class="peer hidden" checked>
+      <label for="chk_${s.id}"
+             class="px-3 py-1 rounded text-white bg-${s.color}
+                    opacity-40 peer-checked:opacity-100
+                    select-none transition">
+        ${s.label}
+      </label>`);
   });
 }
 
-/* ---------- 3. タブを開く + 履歴保存 ---------- */
-function openTabs(){
-  const kw=document.getElementById('keyword').value.trim();
-  if(!kw){ alert('キーワードを入力'); return; }
+/* ---------- 3. タブを開く & 履歴保存 ---------- */
+const HIST_KEY = 'hws_hist';
 
-  const q=encodeURIComponent(kw);
-  SITES.forEach(s=>{
-    if(document.getElementById(`chk_${s.id}`).checked){
-      window.open(s.url(q), '_blank'+Math.random(), 'noopener');
+function openTabs(){
+  const kw = document.getElementById('keyword').value.trim();
+  if (!kw) { alert('キーワードを入力'); return; }
+
+  const q = encodeURIComponent(kw);
+  SITES.forEach(s => {
+    if (document.getElementById(`chk_${s.id}`).checked) {
+      window.open(s.url(q), '_blank' + Math.random(), 'noopener');
     }
   });
   saveHist(kw);
 }
 
-/* ---------- 4. 直近10件ローカル履歴 ---------- */
 function saveHist(kw){
-  let h=JSON.parse(localStorage.hist||'[]');
-  h=h.filter(x=>x!==kw);     // 重複削除
-  h.unshift(kw);             // 先頭に追加
-  h=h.slice(0,10);           // 10件制限
-  localStorage.hist=JSON.stringify(h);
+  let h = JSON.parse(localStorage.getItem(HIST_KEY) || '[]');
+  h = [kw, ...h.filter(x => x !== kw)].slice(0, 10);        // 重複排除＋10件
+  localStorage.setItem(HIST_KEY, JSON.stringify(h));
+  renderHist();
 }
-/* 起動時 */
+
+function renderHist(){
+  const area = document.getElementById('history');
+  const list = JSON.parse(localStorage.getItem(HIST_KEY) || '[]');
+  area.innerHTML = '';
+  list.forEach(k => {
+    const span = document.createElement('span');
+    span.textContent = k;
+    span.className =
+      'px-3 py-1 rounded-full bg-gray-200 hover:bg-gray-300 cursor-pointer';
+    span.onclick = () => { document.getElementById('keyword').value = k; openTabs(); };
+    area.appendChild(span);
+  });
+}
+
+/* ---------- 起動時 ---------- */
 buildToggles();
+renderHist();
 </script>
 </body>
 </html>
