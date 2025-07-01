@@ -1,125 +1,116 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Hyper Web Search</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-
-  <!-- Tailwind + forms プラグイン（チェックボックスが見やすくなる） -->
-  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
-
-  <!-- PWA：manifest + Service Worker -->
-  <link rel="manifest" href="manifest.json" />
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('service-worker.js');
-    }
-  </script>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <!-- Tailwind (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="p-6 max-w-md mx-auto">
+<body class="p-6 max-w-xl mx-auto">
 
   <h1 class="text-2xl font-bold mb-4">Hyper Web Search</h1>
 
-  <!-- キーワード -->
-  <input id="kw" placeholder="商品名 / JAN / 型番"
-         class="w-full border p-3 rounded mb-4 focus:outline-blue-500" />
+  <!-- キーワード入力 -->
+  <input id="kw" type="text"
+         placeholder="商品名 / JAN / 型番"
+         class="w-full border rounded p-3 mb-4">
 
   <!-- サイト選択 -->
-  <div id="toggles" class="flex flex-wrap gap-2 mb-6"></div>
+  <fieldset id="siteBox" class="flex flex-wrap gap-3 mb-6"></fieldset>
 
   <!-- 検索ボタン -->
-  <button id="btn"
-          class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded mb-6">
+  <button id="btnSearch"
+          class="w-full bg-blue-600 text-white py-3 rounded hover:bg-blue-700">
     検索
   </button>
 
-  <!-- ローカル履歴 -->
-  <div id="hist" class="flex flex-wrap gap-3"></div>
+  <!-- 履歴 -->
+  <h2 class="text-lg font-semibold mt-8 mb-2">履歴</h2>
+  <div id="histBox" class="flex flex-wrap gap-3"></div>
 
-  <div id="toggles" class="space-y-1 mb-4 text-sm">
-  <label><input type="checkbox" id="chk_rakuten" checked> 楽天</label><br>
-  <label><input type="checkbox" id="chk_yahoo"   checked> Yahoo</label><br>
-  <label><input type="checkbox" id="chk_amazon"  checked> Amazon</label><br>
-  <label><input type="checkbox" id="chk_mercari" checked> メルカリ</label><br>
-  <label><input type="checkbox" id="chk_yafuri"  checked> ヤフフリ</label><br>
-  <label><input type="checkbox" id="chk_rakuma"  checked> ラクマ</label>
-</div>
+  <script>
+/* ---- 以前の Service Worker を完全解除 ---- */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations()
+    .then(regs => regs.forEach(reg => reg.unregister()));
+}
+</script>
 
 <script>
-/* 1) 検索対象サイト定義 ---------------------------------------- */
+  
+/* ===================== 1. 検索対象サイト設定 ===================== */
 const SITES = [
-  { id:'rakuten', label:'楽天',   color:'bg-red-500',
-    url:q=>`https://search.rakuten.co.jp/search/mall/${q}/?s=2`},
-
-  { id:'yahoo',   label:'Yahoo',  color:'bg-yellow-500',
-    url:q=>`https://shopping.yahoo.co.jp/search?p=${q}&ss_sort=%2Bprice`},
-
-  { id:'amazon',  label:'Amazon', color:'bg-neutral-800',
-    url:q=>`https://www.amazon.co.jp/s?k=${q}&s=price-asc-rank`},
-
-  { id:'mercari', label:'メルカリ',color:'bg-orange-500',
-    url:q=>`https://jp.mercari.com/search?keyword=${q}&sort=price_asc`},
-
-  { id:'yafuri',  label:'ヤフフリ',color:'bg-amber-700',
-    url:q=>`https://auctions.yahoo.co.jp/search/search?p=${q}&slider=price`},
-
-  { id:'rakuma',  label:'ラクマ', color:'bg-pink-600',
-    url:q=>`https://fril.jp/s?query=${q}&order=price_asc`}
+  { id:'rakuten', label:'楽天',    color:'bg-red-500'   ,
+    url:q=>`https://search.rakuten.co.jp/search/mall/${q}/?s=2`             },
+  { id:'yahoo',   label:'Yahoo',   color:'bg-yellow-500',
+    url:q=>`https://shopping.yahoo.co.jp/search?p=${q}&ss_sort=%2Bprice`    },
+  { id:'amazon',  label:'Amazon',  color:'bg-neutral-800',
+    url:q=>`https://www.amazon.co.jp/s?k=${q}&s=price-asc-rank`             },
+  { id:'mercari', label:'メルカリ', color:'bg-orange-500',
+    url:q=>`https://jp.mercari.com/search?keyword=${q}&sort=price_asc`      },
+  { id:'yafuri',  label:'ヤフフリ', color:'bg-amber-700',
+    url:q=>`https://auctions.yahoo.co.jp/search/search?p=${q}&slider=price` },
+  { id:'rakuma',  label:'ラクマ',   color:'bg-pink-600' ,
+    url:q=>`https://fril.jp/s?query=${q}&order=price_asc`                   }
 ];
 
-/* 2) チェックボックス生成 -------------------------------------- */
-function buildToggles(){
-  const box = document.getElementById('toggles');
+/* ===================== 2. トグル（チェックボックス）生成 ===================== */
+function buildSiteToggles(){
+  const box = document.getElementById('siteBox');
   SITES.forEach(s=>{
-    box.insertAdjacentHTML('beforeend',`
-      <label class="flex items-center gap-1 select-none cursor-pointer">
-        <input type="checkbox" id="chk_${s.id}" class="h-4 w-4 accent-blue-600" checked>
-        <span class="text-white px-3 py-1 rounded ${s.color}">${s.label}</span>
+    box.insertAdjacentHTML('beforeend', `
+      <label class="flex items-center gap-1 cursor-pointer">
+        <input type="checkbox" id="chk_${s.id}" class="accent-blue-600" checked>
+        <span class="text-white ${s.color} px-3 py-1 rounded select-none">${s.label}</span>
       </label>
     `);
   });
 }
 
-/* 3) 履歴（直近10件） ----------------------------------------- */
-function saveHist(word){
-  let h = JSON.parse(localStorage.hws_hist||'[]');
-  h = h.filter(x=>x!==word);
-  h.unshift(word);
-  h = h.slice(0,10);
-  localStorage.hws_hist = JSON.stringify(h);
-  drawHist();
-}
-function drawHist(){
-  const box = document.getElementById('hist');
-  box.innerHTML='';
-  JSON.parse(localStorage.hws_hist||'[]').forEach(w=>{
-    box.insertAdjacentHTML('beforeend',`
-      <button class="px-4 py-1 rounded-full bg-gray-200"
-              onclick="document.getElementById('kw').value='${w}'">
-        ${w}
-      </button>`);
-  });
-}
-
-/* 4) 検索実行 -------------------------------------------------- */
+/* ===================== 3. 検索実行 ===================== */
 function openTabs(){
-  const word = document.getElementById('kw').value.trim();
-  if(!word){ alert('キーワードを入力して下さい'); return; }
+  const kw = document.getElementById('kw').value.trim();
+  if(!kw){ alert('キーワードを入力してください'); return; }
 
-  const q = encodeURIComponent(word);
+  const q = encodeURIComponent(kw);
   SITES.forEach(s=>{
-    if(document.getElementById('chk_'+s.id).checked){
+    if(document.getElementById(`chk_${s.id}`).checked){
       window.open(s.url(q), '_blank'+Math.random(), 'noopener');
     }
   });
-  saveHist(word);
+  saveHist(kw);
 }
 
-/* 起動時 */
-buildToggles();
-drawHist();
-document.getElementById('btn').addEventListener('click', openTabs);
-document.getElementById('kw').addEventListener('keydown',e=>{
+/* ===================== 4. 直近10件ローカル履歴 ===================== */
+function saveHist(kw){
+  let hist = JSON.parse(localStorage.hist||'[]');
+  hist = hist.filter(x=>x!==kw);   // 重複排除
+  hist.unshift(kw);                // 先頭に追加
+  hist = hist.slice(0,10);         // 10件制限
+  localStorage.hist = JSON.stringify(hist);
+  renderHist();
+}
+
+function renderHist(){
+  const box  = document.getElementById('histBox');
+  const data = JSON.parse(localStorage.hist||'[]');
+  box.innerHTML='';
+  data.forEach(k=>{
+    box.insertAdjacentHTML('beforeend', `
+      <button class="px-4 py-1 rounded-full bg-gray-200 hover:bg-gray-300"
+              onclick="document.getElementById('kw').value='${k}'">
+        ${k}
+      </button>
+    `);
+  });
+}
+
+/* ===================== 初期化 ===================== */
+buildSiteToggles();
+renderHist();
+document.getElementById('btnSearch').addEventListener('click', openTabs);
+document.getElementById('kw').addEventListener('keydown', e=>{
   if(e.key==='Enter') openTabs();
 });
 </script>
