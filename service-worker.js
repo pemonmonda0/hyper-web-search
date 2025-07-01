@@ -1,6 +1,6 @@
 /* ===== Hyper Web Search – Service Worker ===== */
 
-const CACHE_VERSION = 'v3';          // ← 更新時は文字を変える
+const CACHE_VERSION = 'v4';          // ← 更新時は文字を変える
 const CACHE_NAME    = 'hws-' + CACHE_VERSION;
 const ASSETS = [
   '/', 'index.html',
