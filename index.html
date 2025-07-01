@@ -1,192 +1,227 @@
-
-
 <!DOCTYPE html>
 <html lang="ja">
-<head>
-<meta charset="UTF-8">
-<title>Hyper Web Search</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<style>
-  :root{--blue:#2166ff;--gray:#f2f3f5;}
-  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;margin:20px;max-width:480px}
-  h1{font-size:1.6rem;margin-bottom:1rem}
-  .row{display:flex;gap:.5rem;margin-bottom:1rem}
-  input[type="text"]{flex:1;padding:.6rem;border:1px solid #ccc;border-radius:.3rem;font-size:1rem}
-  button.search{padding:.6rem 1.2rem;font-size:1rem;color:#fff;background:var(--blue);border:none;border-radius:.3rem;cursor:pointer}
-  .sites{display:flex;flex-direction:column;gap:.25rem;margin-bottom:1.5rem}
-  .sites label{display:flex;align-items:center;gap:.4rem;font-size:.94rem}
-  .sites input{accent-color:var(--blue)}
-  .hist{margin-top:1.5rem}
-  .hist h2{font-size:.95rem;margin-bottom:.4rem}
-  .hist ul{list-style:disc;margin:0;padding-left:1.2rem}
-  .hist li{cursor:pointer;color:#0366d6}
-</style>
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Hyper Web Search – v0.3</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <script src="https://cdn.tailwindcss.com"></script>
 
-<h1>Hyper Web Search</h1>
+    <style>
+      /* ── 行そのものを 4 列グリッドにする ────────────────── */
+      .siteRow {
+        display: grid;
+        grid-template-columns: 120px 140px 80px 80px; /* label / sort / min / max */
+        gap: 0.5rem;
+        align-items: center;
+        border: 1px solid #ddd;
+        border-radius: 0.5rem;
+        padding: 0.4rem;
+        transition: 0.15s;
+      }
+      .siteRow:hover {
+        background: #f6f6f6;
+      }
+      .siteRow input[type="checkbox"]:checked ~ label {
+        font-weight: 600;
+        color: #0d6efd;
+      }
+      .w-num {
+        width: 100%;
+      }
+    </style>
+  </head>
 
-<!-- 1 行で検索ボックス＋ボタン -->
-<div class="row">
-  <input id="kw" type="text" placeholder="商品名 / JAN / 型番">
-  <button class="search" onclick="handleSearch()">検索</button>
-</div>
-
-<!-- サイトチェックボックス -->
-<div id="sitesBox" class="sites"></div>
-
-<!-- 履歴 -->
-<div class="hist">
-  <h2>履歴の一覧：</h2>
-  <ul id="histList"></ul>
-</div>
-
-  <script>
-/* ---- 以前の Service Worker を完全解除 ---- */
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations()
-    .then(regs => regs.forEach(reg => reg.unregister()));
-}
-</script>
-
-<script>
-// ------------------- 設定 -------------------
-const SITES = [
-  { id:'rakuten', label:'楽天',   url:q=>`https://search.rakuten.co.jp/search/mall/${q}/` },
-  { id:'yahoo',   label:'Yahoo',  url:q=>`https://shopping.yahoo.co.jp/search?p=${q}` },
-  { id:'amazon',  label:'Amazon', url:q=>`https://www.amazon.co.jp/s?k=${q}` },
-  { id:'mercari', label:'メルカリ',url:q=>`https://jp.mercari.com/search?keyword=${q}` },
-  { id:'yafuoku', label:'ヤフフリ',url:q=>`https://auctions.yahoo.co.jp/search/search?p=${q}` },
-  { id:'rakuma',  label:'ラクマ', url:q=>`https://fril.jp/s?query=${q}` }
-];
-const MAX_HIST = 10;
-
-// ------------------- UI 初期化 -------------------
-const sitesBox  = document.getElementById('sitesBox');
-const histList  = document.getElementById('histList');
-const kwInput   = document.getElementById('kw');
-
-SITES.forEach(s=>{
-  sitesBox.insertAdjacentHTML('beforeend',`
-    <label><input type="checkbox" id="${s.id}" checked> ${s.label}</label>
-  `);
-});
-renderHist();
-
-// ------------------- 検索 -------------------
-function handleSearch(){
-  const kw = kwInput.value.trim();
-  if(!kw){ kwInput.focus(); return; }
-  const q = encodeURIComponent(kw);
-
-  SITES.forEach(s=>{
-    if(document.getElementById(s.id).checked){
-      window.open(s.url(q),'_blank');
-    }
-  });
-  storeHist(kw);
-}
-
-// ------------------- 履歴 -------------------
-function storeHist(kw){
-  let h = JSON.parse(localStorage.getItem('hist')||'[]');
-  h = h.filter(x=>x!==kw);      // 重複削除
-  h.unshift(kw);                // 先頭挿入
-  h = h.slice(0,MAX_HIST);      // 上限
-  localStorage.setItem('hist',JSON.stringify(h));
-  renderHist();
-}
-
-function renderHist(){
-  histList.innerHTML='';
-  const h = JSON.parse(localStorage.getItem('hist')||'[]');
-  h.forEach(w=>{
-    const li=document.createElement('li');
-    li.textContent=w;
-    li.onclick=()=>{ kwInput.value=w; };
-    histList.appendChild(li);
-  });
-}
-</script>
-</body>
-</html>
-
-<script>
-  
-/* ===================== 1. 検索対象サイト設定 ===================== */
-const SITES = [
-  { id:'rakuten', label:'楽天',    color:'bg-red-500'   ,
-    url:q=>`https://search.rakuten.co.jp/search/mall/${q}/?s=2`             },
-  { id:'yahoo',   label:'Yahoo',   color:'bg-yellow-500',
-    url:q=>`https://shopping.yahoo.co.jp/search?p=${q}&ss_sort=%2Bprice`    },
-  { id:'amazon',  label:'Amazon',  color:'bg-neutral-800',
-    url:q=>`https://www.amazon.co.jp/s?k=${q}&s=price-asc-rank`             },
-  { id:'mercari', label:'メルカリ', color:'bg-orange-500',
-    url:q=>`https://jp.mercari.com/search?keyword=${q}&sort=price_asc`      },
-  { id:'yafuri',  label:'ヤフフリ', color:'bg-amber-700',
-    url:q=>`https://auctions.yahoo.co.jp/search/search?p=${q}&slider=price` },
-  { id:'rakuma',  label:'ラクマ',   color:'bg-pink-600' ,
-    url:q=>`https://fril.jp/s?query=${q}&order=price_asc`                   }
-];
-
-/* ===================== 2. トグル（チェックボックス）生成 ===================== */
-function buildSiteToggles(){
-  const box = document.getElementById('siteBox');
-  SITES.forEach(s=>{
-    box.insertAdjacentHTML('beforeend', `
-      <label class="flex items-center gap-1 cursor-pointer">
-        <input type="checkbox" id="chk_${s.id}" class="accent-blue-600" checked>
-        <span class="text-white ${s.color} px-3 py-1 rounded select-none">${s.label}</span>
-      </label>
-    `);
-  });
-}
-
-/* ===================== 3. 検索実行 ===================== */
-function openTabs(){
-  const kw = document.getElementById('kw').value.trim();
-  if(!kw){ alert('キーワードを入力してください'); return; }
-
-  const q = encodeURIComponent(kw);
-  SITES.forEach(s=>{
-    if(document.getElementById(`chk_${s.id}`).checked){
-      window.open(s.url(q), '_blank'+Math.random(), 'noopener');
-    }
-  });
-  saveHist(kw);
-}
-
-/* ===================== 4. 直近10件ローカル履歴 ===================== */
-function saveHist(kw){
-  let hist = JSON.parse(localStorage.hist||'[]');
-  hist = hist.filter(x=>x!==kw);   // 重複排除
-  hist.unshift(kw);                // 先頭に追加
-  hist = hist.slice(0,10);         // 10件制限
-  localStorage.hist = JSON.stringify(hist);
-  renderHist();
-}
-
-function renderHist(){
-  const box  = document.getElementById('histBox');
-  const data = JSON.parse(localStorage.hist||'[]');
-  box.innerHTML='';
-  data.forEach(k=>{
-    box.insertAdjacentHTML('beforeend', `
-      <button class="px-4 py-1 rounded-full bg-gray-200 hover:bg-gray-300"
-              onclick="document.getElementById('kw').value='${k}'">
-        ${k}
+  <!-- *** BODY *** -->
+  <body class="max-w-lg mx-auto p-4 space-y-4">
+    <!-- ───────── 検索バー ───────── -->
+    <div class="flex gap-2">
+      <input
+        id="kw"
+        class="flex-1 border rounded px-3 py-2"
+        placeholder="商品名 / JAN / 型番"
+      />
+      <button onclick="doSearch()" class="bg-blue-600 text-white px-4 rounded">
+        検索
       </button>
-    `);
-  });
-}
+    </div>
 
-/* ===================== 初期化 ===================== */
-buildSiteToggles();
-renderHist();
-document.getElementById('btnSearch').addEventListener('click', openTabs);
-document.getElementById('kw').addEventListener('keydown', e=>{
-  if(e.key==='Enter') openTabs();
-});
-</script>
-</body>
+    <!-- ───────── サイト入力行（動的生成） ───────── -->
+    <div id="siteBox" class="space-y-2"></div>
+
+    <!-- ───────── 履歴 ───────── -->
+    <h2 class="font-bold mt-6">履歴</h2>
+    <ul
+      id="hist"
+      class="list-disc pl-6 space-y-1 text-blue-600 cursor-pointer"
+    ></ul>
+
+    <script>
+      /* ===== 1. サイト定義 ===== */
+      const SITES = [
+        {
+          id: "rakuten",
+          label: "楽天",
+          sort: [
+            { v: "", t: "標準" },
+            { v: "12", t: "安い順 (価格+送料)" },
+            { v: "13", t: "高い順 (価格+送料)" },
+            { v: "2", t: "安い順" },
+            { v: "3", t: "高い順" },
+          ],
+          url: (q, o) =>
+            `https://search.rakuten.co.jp/search/mall/${q}/?s=${o.sort}` +
+            (o.min ? `&min=${o.min}` : "") +
+            (o.max ? `&max=${o.max}` : ""),
+        },
+        {
+          id: "yahoo",
+          label: "Yahoo!",
+          sort: [
+            { v: "5", t: "おすすめ順" },
+            { v: "14", t: "おすすめ順 (優先配達)" },
+            { v: "2", t: "安い順" },
+            { v: "3", t: "高い順" },
+            { v: "12", t: "価格+送料が安い順" },
+            { v: "13", t: "価格+送料が高い順" },
+          ],
+          url: (q, o) =>
+            `https://shopping.yahoo.co.jp/search?p=${q}&X=${o.sort}` +
+            (o.min ? `&pf=${o.min}` : "") +
+            (o.max ? `&pt=${o.max}` : ""),
+        },
+        /* ここに Amazon / メルカリ / … を同形式で追加 */
+        /* --- 既存 SITES …（楽天 / Yahoo! などの後ろに続けて追加）--- */
+
+        {
+          /* 1) Amazon – 価格帯は &rh=p_36 の 100 倍指定が必要                     */
+          id: "amazon",
+          label: "Amazon",
+          sort: [
+            { v: "relevanceblender", t: "おすすめ" },
+            { v: "price-asc-rank", t: "安い順" },
+            { v: "price-desc-rank", t: "高い順" },
+            { v: "review-rank", t: "標準的なカスタマーレビュー" },
+            { v: "date-desc-rank", t: "新着商品" },
+            { v: "exact-aware-popularity-rank", t: "ベストセラー" },
+          ],
+          url: (q, o) => {
+            let u = `https://www.amazon.co.jp/s?k=${q}&s=${o.sort}`;
+            if (o.min || o.max) {
+              const lo = o.min ? o.min + "00" : ""; // ×100 円
+              const hi = o.max ? o.max + "00" : "";
+              u += `&rh=p_36%3A${lo}-${hi}`; // p_36: 価格フィルタ
+            }
+            return u;
+          },
+        },
+        {
+          /* 2) メルカリ – 下限 price_min / 上限 price_max                        */
+          id: "mercari",
+          label: "メルカリ",
+          sort: [
+            { v: "score&order=asc", t: "おすすめ順" },
+            { v: "price&order=asc", t: "価格の安い順" },
+            { v: "price&order=desc", t: "価格の高い順" },
+            { v: "created_time&order=desc", t: "新しい順" },
+            { v: "num_likes&order=desc", t: "いいね順" },
+          ],
+          url: (q, o) => {
+            let u = `https://jp.mercari.com/search?keyword=${q}&sort=${o.sort}`;
+            if (o.min) u += `&price_min=${o.min}`;
+            if (o.max) u += `&price_max=${o.max}`;
+            return u;
+          },
+        },
+        {
+          /* 3) Y!フリマ（PayPay フリマ）– minPrice / maxPrice                    */
+          id: "paypay",
+          label: "Y!フリマ",
+          sort: [
+            { v: "ranking&order=asc", t: "おすすめ順" },
+            { v: "openTime&order=desc", t: "新着順" },
+            { v: "price&order=asc", t: "価格が安い順" },
+            { v: "price&order=desc", t: "価格が高い順" },
+            { v: "likeCounts&order=desc", t: "いいね！の多い順" },
+          ],
+          url: (q, o) => {
+            let u = `https://paypayfleamarket.yahoo.co.jp/search/${q}?sort=${o.sort}`;
+            if (o.min) u += `&minPrice=${o.min}`;
+            if (o.max) u += `&maxPrice=${o.max}`;
+            return u;
+          },
+        },
+      ];
+
+      /* ===== 2. UI 組み立て ===== */
+      function buildSites() {
+        const box = document.getElementById("siteBox");
+        SITES.forEach((s) => {
+          const sortOpts = s.sort
+            .map((o) => `<option value="${o.v}">${o.t}</option>`)
+            .join("");
+          box.insertAdjacentHTML(
+            "beforeend",
+            `
+            <div class="siteRow" id="row_${s.id}">
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="chk_${s.id}" class="h-5 w-5" >
+                <label for="chk_${s.id}" class="select-none">${s.label}</label>
+              </div>
+              <select id="sort_${s.id}" class="border rounded px-1 py-0.5 text-sm w-full">
+                ${sortOpts}
+              </select>
+              <input id="min_${s.id}" type="number" placeholder="下限"
+                    class="border rounded px-1 py-0.5 text-right text-sm w-num">
+              <input id="max_${s.id}" type="number" placeholder="上限"
+                    class="border rounded px-1 py-0.5 text-right text-sm w-num">
+            </div>`
+          );
+        });
+      }
+      buildSites();
+
+      /* ===== 3. 検索 & 履歴 ===== */
+      function doSearch() {
+        const kw = document.getElementById("kw").value.trim();
+        if (!kw) {
+          alert("キーワード を入力してください");
+          return;
+        }
+        const q = encodeURIComponent(kw);
+
+        SITES.forEach((s) => {
+          if (document.getElementById(`chk_${s.id}`).checked) {
+            const opt = {
+              sort: document.getElementById(`sort_${s.id}`).value,
+              min: document.getElementById(`min_${s.id}`).value,
+              max: document.getElementById(`max_${s.id}`).value,
+            };
+            window.open(s.url(q, opt), "_blank" + Math.random(), "noopener");
+          }
+        });
+        saveHist(kw);
+      }
+
+      /* ===== 4. ローカル履歴 ===== */
+      function saveHist(kw) {
+        let h = JSON.parse(localStorage.hist || "[]");
+        h = h.filter((x) => x !== kw);
+        h.unshift(kw);
+        h = h.slice(0, 10);
+        localStorage.hist = JSON.stringify(h);
+        drawHist();
+      }
+      function drawHist() {
+        const ul = document.getElementById("hist");
+        ul.innerHTML = "";
+        JSON.parse(localStorage.hist || "[]").forEach((w) => {
+          ul.insertAdjacentHTML(
+            "beforeend",
+            `<li onclick="document.getElementById('kw').value='${w}'">${w}</li>`
+          );
+        });
+      }
+      drawHist();
+    </script>
+  </body>
 </html>
